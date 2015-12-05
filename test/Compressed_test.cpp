@@ -93,7 +93,7 @@ namespace
 
 void test_Compressed_default_ctr()
 {
-    watson::Compressed obj;
+    const watson::Compressed obj;
 
     TEST_ASSERT(watson::ngrdnt_type(obj->type_marker()) == watson::Ngrdnt_type::k_null);
     TEST_ASSERT(obj->size() == 1);
@@ -107,12 +107,12 @@ void test_Compressed_copy_ctr()
     watson::Compressed b(obj);
     verify_object(watson::Container(*obj));
     verify_object(watson::Container(*b));
-    TEST_ASSERT(&(obj.child()) != &(b.child()));
+    TEST_ASSERT(&(*obj) != &(*b));
 
     watson::Compressed c = b;
     verify_object(watson::Container(*b));
     verify_object(watson::Container(*c));
-    TEST_ASSERT(&(b.child()) != &(c.child()));
+    TEST_ASSERT(&(*b) != &(*c));
 }
 
 void test_Compressed_ingredient_ctr()
@@ -125,39 +125,43 @@ void test_Compressed_move_semantics()
 {
     watson::Compressed obj(watson::Ngrdnt::temp(test_compressed_container));
     watson::Compressed b;
+    const uint8_t* const expected = obj->data();
     TEST_ASSERT(obj->data() != b->data());
 
     b = std::move(obj);
-    TEST_ASSERT(obj->data() == b->data());
+    TEST_ASSERT((*obj) == nullptr);
+    TEST_ASSERT(b->data() == expected);
 
     watson::Compressed c(std::move(b));
-    TEST_ASSERT(b->data() == c->data());
+    TEST_ASSERT((*b) == nullptr);
+    TEST_ASSERT(c->data() == expected);
 
     verify_object(watson::Container(*c));
 }
 
 void test_Compressed_adoption_ctr()
 {
-    watson::Compressed obj(std::move(watson::Ngrdnt::clone_from(test_container)));
-    watson::Ngrdnt i(watson::new_ngrdnt(obj));
+    watson::Compressed obj(std::move(watson::Ngrdnt::clone(test_container)));
+    watson::Ngrdnt::Ptr i(watson::new_ngrdnt(obj));
 
-    for (int h = 0; h < i.size(); ++h)
+    for (int h = 0; h < i->size(); ++h)
     {
         std::ostringstream oss;
-        oss << "h=" << h << " result=" << ((int)i.data()[h]);
+        oss << "h=" << h << " result=" << ((int)i->data()[h]);
         oss << " expected=" << ((int)test_compressed_container[h]);
-        TEST_ASSERT_MSG(oss.str(), i.data()[h] == test_compressed_container[h]);
+        TEST_ASSERT_MSG(oss.str(), i->data()[h] == test_compressed_container[h]);
     }
 }
 
 void test_Compressed_read_write()
 {
-    watson::Compressed obj(std::move(watson::Ngrdnt::clone_from(test_container)));
-    const watson::Ngrdnt i(watson::new_ngrdnt(obj));
+    watson::Compressed obj(std::move(watson::Ngrdnt::clone(test_container)));
+    const watson::Ngrdnt::Ptr i(watson::new_ngrdnt(obj));
     watson::Compressed b(i);
 
     verify_object(watson::Container(*obj));
     verify_object(watson::Container(*b));
+    // TODO Actually test reading and writing to an IO stream.
 }
 
 const Test_entry tests[] = {

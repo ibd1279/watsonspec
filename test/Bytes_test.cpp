@@ -152,13 +152,13 @@ void test_Bytes_adoption_ctr()
     watson::Bytes b(std::move(input),
             expected_size + 4);
 
-    watson::Ngrdnt i(watson::new_ngrdnt(b));
-    for (int h = 0; h < i.size(); ++h)
+    watson::Ngrdnt::Ptr i(watson::new_ngrdnt(b));
+    for (int h = 0; h < i->size(); ++h)
     {
         std::ostringstream oss;
-        oss << "h=" << h << " result=" << ((int)i.data()[h]);
+        oss << "h=" << h << " result=" << ((int)i->data()[h]);
         oss << " expected=" << ((int)test_bytes[h]);
-        TEST_ASSERT_MSG(oss.str(), i.data()[h] == test_bytes[h]);
+        TEST_ASSERT_MSG(oss.str(), i->data()[h] == test_bytes[h]);
     }
 }
 

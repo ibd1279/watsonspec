@@ -64,20 +64,20 @@ void test_Map_copy_ctr()
 
     watson::Map m_copy(m);
     TEST_ASSERT_MSG(std::to_string(m_copy.size()), m_copy.size() == 4);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[0].type_marker()) == watson::Ngrdnt_type::k_null);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[1].type_marker()) == watson::Ngrdnt_type::k_true);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[2].type_marker()) == watson::Ngrdnt_type::k_false);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[3].type_marker()) == watson::Ngrdnt_type::k_string);
-    watson::Ngrdnt s1(m_copy[3]);
+    TEST_ASSERT(watson::ngrdnt_type(m_copy[0]->type_marker()) == watson::Ngrdnt_type::k_null);
+    TEST_ASSERT(watson::ngrdnt_type(m_copy[1]->type_marker()) == watson::Ngrdnt_type::k_true);
+    TEST_ASSERT(watson::ngrdnt_type(m_copy[2]->type_marker()) == watson::Ngrdnt_type::k_false);
+    TEST_ASSERT(watson::ngrdnt_type(m_copy[3]->type_marker()) == watson::Ngrdnt_type::k_string);
+    watson::Ngrdnt::Ptr s1(watson::Ngrdnt::clone(m_copy[3]));
     TEST_ASSERT(watson::to_string(s1).compare(expected_string) == 0);
 
     watson::Map c = m_copy;
     TEST_ASSERT(m_copy.size() == 4);
-    TEST_ASSERT(watson::ngrdnt_type(c[0].type_marker()) == watson::Ngrdnt_type::k_null);
-    TEST_ASSERT(watson::ngrdnt_type(c[1].type_marker()) == watson::Ngrdnt_type::k_true);
-    TEST_ASSERT(watson::ngrdnt_type(c[2].type_marker()) == watson::Ngrdnt_type::k_false);
-    TEST_ASSERT(watson::ngrdnt_type(c[3].type_marker()) == watson::Ngrdnt_type::k_string);
-    watson::Ngrdnt s2(c[3]);
+    TEST_ASSERT(watson::ngrdnt_type(c[0]->type_marker()) == watson::Ngrdnt_type::k_null);
+    TEST_ASSERT(watson::ngrdnt_type(c[1]->type_marker()) == watson::Ngrdnt_type::k_true);
+    TEST_ASSERT(watson::ngrdnt_type(c[2]->type_marker()) == watson::Ngrdnt_type::k_false);
+    TEST_ASSERT(watson::ngrdnt_type(c[3]->type_marker()) == watson::Ngrdnt_type::k_string);
+    watson::Ngrdnt::Ptr s2(watson::Ngrdnt::clone(c[3]));
     TEST_ASSERT(watson::to_string(s1).compare(expected_string) == 0);
 }
 
@@ -86,11 +86,11 @@ void test_Map_ingredient_ctr()
     watson::Map m(watson::Ngrdnt::temp(test_map));
 
     TEST_ASSERT(m.size() == 4);
-    TEST_ASSERT(watson::ngrdnt_type(m[0].type_marker()) == watson::Ngrdnt_type::k_null);
-    TEST_ASSERT(watson::ngrdnt_type(m[1].type_marker()) == watson::Ngrdnt_type::k_true);
-    TEST_ASSERT(watson::ngrdnt_type(m[2].type_marker()) == watson::Ngrdnt_type::k_false);
-    TEST_ASSERT(watson::ngrdnt_type(m[3].type_marker()) == watson::Ngrdnt_type::k_string);
-    watson::Ngrdnt s1(m[3]);
+    TEST_ASSERT(watson::ngrdnt_type(m[0]->type_marker()) == watson::Ngrdnt_type::k_null);
+    TEST_ASSERT(watson::ngrdnt_type(m[1]->type_marker()) == watson::Ngrdnt_type::k_true);
+    TEST_ASSERT(watson::ngrdnt_type(m[2]->type_marker()) == watson::Ngrdnt_type::k_false);
+    TEST_ASSERT(watson::ngrdnt_type(m[3]->type_marker()) == watson::Ngrdnt_type::k_string);
+    watson::Ngrdnt::Ptr s1(watson::Ngrdnt::clone(m[3]));
     TEST_ASSERT(watson::to_string(s1).compare(expected_string) == 0);
 }
 
@@ -109,11 +109,11 @@ void test_Map_move_semantics()
     watson::Map m3(std::move(m2));
     TEST_ASSERT(m2.size() == 0);
     TEST_ASSERT(m3.size() == 4);
-    TEST_ASSERT(watson::ngrdnt_type(m3[0].type_marker()) == watson::Ngrdnt_type::k_null);
-    TEST_ASSERT(watson::ngrdnt_type(m3[1].type_marker()) == watson::Ngrdnt_type::k_true);
-    TEST_ASSERT(watson::ngrdnt_type(m3[2].type_marker()) == watson::Ngrdnt_type::k_false);
-    TEST_ASSERT(watson::ngrdnt_type(m3[3].type_marker()) == watson::Ngrdnt_type::k_string);
-    watson::Ngrdnt s1(m3[3]);
+    TEST_ASSERT(watson::ngrdnt_type(m3[0]->type_marker()) == watson::Ngrdnt_type::k_null);
+    TEST_ASSERT(watson::ngrdnt_type(m3[1]->type_marker()) == watson::Ngrdnt_type::k_true);
+    TEST_ASSERT(watson::ngrdnt_type(m3[2]->type_marker()) == watson::Ngrdnt_type::k_false);
+    TEST_ASSERT(watson::ngrdnt_type(m3[3]->type_marker()) == watson::Ngrdnt_type::k_string);
+    watson::Ngrdnt::Ptr s1(watson::Ngrdnt::clone(m3[3]));
     TEST_ASSERT(watson::to_string(s1).compare(expected_string) == 0);
 }
 
@@ -125,14 +125,14 @@ void test_Map_adoption_ctr()
     c[2] = watson::new_ngrdnt(false);
     c[3] = watson::new_ngrdnt("Testing");
     watson::Map m(std::move(c));
-    watson::Ngrdnt i(watson::new_ngrdnt(m));
+    watson::Ngrdnt::Ptr i(watson::new_ngrdnt(m));
 
-    for (int h = 0; h < i.size(); ++h)
+    for (int h = 0; h < i->size(); ++h)
     {
         std::ostringstream oss;
-        oss << "h=" << h << " result=" << ((int)i.data()[h]);
+        oss << "h=" << h << " result=" << ((int)i->data()[h]);
         oss << " expected=" << ((int)test_map[h]);
-        TEST_ASSERT_MSG(oss.str(), i.data()[h] == test_map[h]);
+        TEST_ASSERT_MSG(oss.str(), i->data()[h] == test_map[h]);
     }
 }
 

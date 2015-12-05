@@ -50,7 +50,8 @@ namespace watson
 
     Ngrdnt::Ngrdnt() :
             ptr_(new uint8_t[1]),
-            data_(ptr_.get())
+            data_(ptr_.get()),
+            parent_(nullptr)
     {
         ptr_[0] = ::watson::type_marker(Size_type::k_zero,
                 Ngrdnt_type::k_null);
@@ -58,20 +59,24 @@ namespace watson
 
     Ngrdnt::Ngrdnt(const Ngrdnt& o) :
             ptr_(new uint8_t[o.size()]),
-            data_(ptr_.get())
+            data_(ptr_.get()),
+            parent_(o.parent_)
     {
         std::memcpy(ptr_.get(), o.data(), o.size());
     }
 
-    Ngrdnt::Ngrdnt(Ngrdnt&& o) :
-            ptr_(std::move(o.ptr_)),
-            data_(o.data_)
+    Ngrdnt::Ngrdnt(const std::uint8_t* d) :
+            ptr_(nullptr),
+            data_(d),
+            parent_(nullptr)
     {
     }
 
-    Ngrdnt::Ngrdnt(std::unique_ptr<uint8_t[]>&& bytes) :
+    Ngrdnt::Ngrdnt(std::unique_ptr<uint8_t[]>&& bytes,
+            const Ngrdnt::Ptr& p) :
             ptr_(std::move(bytes)),
-            data_(ptr_.get())
+            data_(ptr_.get()),
+            parent_(p)
     {
     }
 
@@ -85,6 +90,7 @@ namespace watson
     Ngrdnt& Ngrdnt::operator=(Ngrdnt&& rhs)
     {
         std::swap(ptr_, rhs.ptr_);
+        std::swap(parent_, rhs.parent_);
         data_ = rhs.data_;
         return *this;
     };
@@ -108,12 +114,6 @@ namespace watson
                 break;
         };
         return sz;
-    }
-
-    Ngrdnt::Ngrdnt(const std::uint8_t* d) :
-            ptr_(nullptr),
-            data_(d)
-    {
     }
 
     // ----------------------------------------------------------------
@@ -147,7 +147,7 @@ namespace watson
         }
 
         template <Ngrdnt_type IT>
-        inline Ngrdnt copy_to_ngrdnt(const uint64_t data_size,
+        inline Ngrdnt::Ptr copy_to_ngrdnt(const uint64_t data_size,
                 const void* data)
         {
             uint8_t* current;
@@ -158,33 +158,33 @@ namespace watson
                 memcpy(current, data, data_size);
             }
 
-            return Ngrdnt(std::move(ptr));
+            return Ngrdnt::adopt(std::move(ptr));
         }
 
         template <typename NT, Ngrdnt_type IT>
-        inline const NT* ngrdnt_data(const Ngrdnt& val)
+        inline const NT* ngrdnt_data(const Ngrdnt::Ptr& val)
         {
             const NT* result = nullptr;
-            if (IT == ngrdnt_type(val.type_marker()))
+            if (IT == ngrdnt_type(val->type_marker()))
             {
-                const size_t header_size = ngrdnt_header_size(val.type_marker());
-                result = reinterpret_cast<const NT*>(val.data() + header_size);
+                const size_t header_size = ngrdnt_header_size(val->type_marker());
+                result = reinterpret_cast<const NT*>(val->data() + header_size);
             }
             return result;
         }
     }; // namespace watson::(anonymous)
 
-    Ngrdnt new_ngrdnt()
+    Ngrdnt::Ptr new_ngrdnt()
     {
-        return Ngrdnt();
+        return Ngrdnt::make();
     }
 
-    Ngrdnt new_ngrdnt(const std::string& val)
+    Ngrdnt::Ptr new_ngrdnt(const std::string& val)
     {
         return copy_to_ngrdnt<Ngrdnt_type::k_string>(val.size(), val.c_str());
     }
 
-    Ngrdnt new_ngrdnt(const bool val)
+    Ngrdnt::Ptr new_ngrdnt(const bool val)
     {
         if (val)
         {
@@ -194,27 +194,27 @@ namespace watson
     }
 
 
-    Ngrdnt new_ngrdnt(const double val)
+    Ngrdnt::Ptr new_ngrdnt(const double val)
     {
         return copy_to_ngrdnt<Ngrdnt_type::k_float>(sizeof(double), &val);
     }
 
-    Ngrdnt new_ngrdnt(const int32_t val)
+    Ngrdnt::Ptr new_ngrdnt(const int32_t val)
     {
         return copy_to_ngrdnt<Ngrdnt_type::k_int32>(sizeof(int32_t), &val);
     }
 
-    Ngrdnt new_ngrdnt(const int64_t val)
+    Ngrdnt::Ptr new_ngrdnt(const int64_t val)
     {
         return copy_to_ngrdnt<Ngrdnt_type::k_int64>(sizeof(int64_t), &val);
     }
 
-    Ngrdnt new_ngrdnt(const uint64_t val)
+    Ngrdnt::Ptr new_ngrdnt(const uint64_t val)
     {
         return copy_to_ngrdnt<Ngrdnt_type::k_uint64>(sizeof(uint64_t), &val);
     }
 
-    Ngrdnt new_ngrdnt(const std::vector<bool>& val)
+    Ngrdnt::Ptr new_ngrdnt(const std::vector<bool>& val)
     {
         uint64_t data_size = (val.size() / 8) + (val.size() % 8 == 0 ? 0 : 1);
 
@@ -236,15 +236,15 @@ namespace watson
         return copy_to_ngrdnt<Ngrdnt_type::k_flags>(data_size, ptr.get());
     }
 
-    bool is_null(const Ngrdnt& val)
+    bool is_null(const Ngrdnt::Ptr& val)
     {
-        return ngrdnt_type(val.type_marker()) == Ngrdnt_type::k_null;
+        return ngrdnt_type(val->type_marker()) == Ngrdnt_type::k_null;
     }
 
-    bool to_bool(const Ngrdnt& val)
+    bool to_bool(const Ngrdnt::Ptr& val)
     {
         bool result = false;
-        switch (ngrdnt_type(val.type_marker()))
+        switch (ngrdnt_type(val->type_marker()))
         {
             case Ngrdnt_type::k_null:
             case Ngrdnt_type::k_false:
@@ -266,34 +266,34 @@ namespace watson
         return result;
     }
 
-    double to_double(const Ngrdnt& val)
+    double to_double(const Ngrdnt::Ptr& val)
     {
         auto result = ngrdnt_data<double, Ngrdnt_type::k_float>(val);
         return result ? *result : 0.0f;
     }
 
-    int32_t to_int32(const Ngrdnt& val)
+    int32_t to_int32(const Ngrdnt::Ptr& val)
     {
         auto result = ngrdnt_data<int32_t, Ngrdnt_type::k_int32>(val);
         return result ? *result : 0;
     }
 
-    int64_t to_int64(const Ngrdnt& val)
+    int64_t to_int64(const Ngrdnt::Ptr& val)
     {
         auto result = ngrdnt_data<int64_t, Ngrdnt_type::k_int64>(val);
         return result ? *result : 0;
     }
 
-    uint64_t to_uint64(const Ngrdnt& val)
+    uint64_t to_uint64(const Ngrdnt::Ptr& val)
     {
         auto result = ngrdnt_data<uint64_t, Ngrdnt_type::k_uint64>(val);
         return result ? *result : 0;
     }
 
-    std::vector<bool> to_flags(const Ngrdnt& val)
+    std::vector<bool> to_flags(const Ngrdnt::Ptr& val)
     {
-        const size_t header_size = ngrdnt_header_size(val.type_marker());
-        const uint64_t flag_count = (val.size() - header_size) * 8;
+        const size_t header_size = ngrdnt_header_size(val->type_marker());
+        const uint64_t flag_count = (val->size() - header_size) * 8;
         std::vector<bool> result(flag_count);
 
         for (int h = 0; h < flag_count; ++h)
@@ -302,18 +302,18 @@ namespace watson
             const uint8_t indx = h >> 3;
             const uint8_t flag = 1 << offset;
 
-            result[h] = val.data()[indx + header_size] & flag;
+            result[h] = val->data()[indx + header_size] & flag;
         }
 
         return result;
     }
 
-    std::string to_string(const Ngrdnt& val)
+    std::string to_string(const Ngrdnt::Ptr& val)
     {
         size_t header_size;
         std::string result;
 
-        switch(ngrdnt_type(val.type_marker()))
+        switch(ngrdnt_type(val->type_marker()))
         {
             case Ngrdnt_type::k_null:
                 result = "null";
@@ -337,9 +337,9 @@ namespace watson
                 result = std::to_string(to_uint64(val));
                 break;
             case Ngrdnt_type::k_string:
-                header_size = ngrdnt_header_size(val.type_marker());
-                result = std::string(reinterpret_cast<const char*>(val.data() + header_size),
-                        val.size() - header_size);
+                header_size = ngrdnt_header_size(val->type_marker());
+                result = std::string(reinterpret_cast<const char*>(val->data() + header_size),
+                        val->size() - header_size);
                 break;
             default:
                 break;
@@ -347,28 +347,28 @@ namespace watson
         return result;
     }
 
-    std::string to_dump(const Ngrdnt& val)
+    std::string to_dump(const Ngrdnt::Ptr& val)
     {
         std::ostringstream oss;
         std::hex(oss);
         oss.fill('0');
-        oss << "0x[" << static_cast<const unsigned>(val.type_marker()) <<
+        oss << "0x[" << static_cast<const unsigned>(val->type_marker()) <<
                 "={ " << std::setw(2) <<
-                static_cast<const unsigned>(size_type(val.type_marker()));
+                static_cast<const unsigned>(size_type(val->type_marker()));
         oss << ' ' << std::setw(2) <<
-                static_cast<const unsigned>(ngrdnt_type(val.type_marker()));
+                static_cast<const unsigned>(ngrdnt_type(val->type_marker()));
         oss << " } {";
 
-        uint64_t sz = val.size();
-        for (int h = 0; h < size_size(size_type(val.type_marker())); ++h)
+        uint64_t sz = val->size();
+        for (int h = 0; h < size_size(size_type(val->type_marker())); ++h)
         {
             oss << ' ' << std::setw(2) <<
                     static_cast<const unsigned>(*(reinterpret_cast<uint8_t*>(&sz) + h));
         }
         oss << " }";
-        for (int h = ngrdnt_header_size(val.type_marker()); h < val.size(); ++h)
+        for (int h = ngrdnt_header_size(val->type_marker()); h < val->size(); ++h)
         {
-            oss << ' ' << std::setw(2) << static_cast<const unsigned>(val.data()[h]);
+            oss << ' ' << std::setw(2) << static_cast<const unsigned>(val->data()[h]);
         }
         oss << ']';
         return oss.str();
@@ -376,63 +376,24 @@ namespace watson
 
 
     // ----------------------------------------------------------------
-    // Header class
-    // ----------------------------------------------------------------
-
-    const Ngrdnt Header::k_not_found;
-
-    Header::Header(Header::Children&& c) :
-            children_(std::move(c))
-    {
-    }
-
-    Header::Header(const Ngrdnt& raw) :
-            Header()
-    {
-        const size_t header_size = ngrdnt_header_size(raw.type_marker());
-        const uint8_t* ptr = raw.data() + header_size;
-        const uint8_t* const end = raw.data() + raw.size();
-
-        while (end > ptr)
-        {
-            // Read the key.
-            std::string key(reinterpret_cast<const char*>(ptr));
-            ptr += key.size() + 1;
-
-            // Store the value.
-            children_.insert(Children::value_type(key,
-                    Ngrdnt::temp(ptr)));
-
-            // Advance the ptr.
-            ptr += Ngrdnt::temp(ptr).size();
-        }
-    }
-
-    const Ngrdnt& Header::operator[](const std::string& key) const
-    {
-        auto iter = children().find(key);
-        if (iter == children().end())
-        {
-            return k_not_found;
-        }
-        return iter->second;
-    }
-
-    // ----------------------------------------------------------------
     // Compressed class
     // ----------------------------------------------------------------
 
-    Compressed::Compressed(Ngrdnt&& c) :
-            child_(std::move(c))
+    Compressed::Compressed() :
+            child_(std::move(Ngrdnt::make()))
     {
     }
 
-    Compressed::Compressed(const Ngrdnt& raw) :
-            Compressed()
+    Compressed::Compressed(Ngrdnt::Ptr&& raw) :
+            child_(std::move(raw))
     {
-        const size_t header_size = ngrdnt_header_size(raw.type_marker());
-        const uint8_t* data = raw.data() + header_size;
-        const size_t data_size = raw.size() - header_size;
+    }
+
+    Compressed::Compressed(const Ngrdnt::Ptr& raw)
+    {
+        const size_t header_size = ngrdnt_header_size(raw->type_marker());
+        const uint8_t* data = raw->data() + header_size;
+        const size_t data_size = raw->size() - header_size;
 
         size_t output_size;
         bool result = snappy::GetUncompressedLength(reinterpret_cast<const char*>(data),
@@ -446,7 +407,7 @@ namespace watson
                 reinterpret_cast<char*>(output.get()));
         assert(result);
 
-        child_ = std::move(Ngrdnt(std::move(output)));
+        child_ = std::move(Ngrdnt::adopt(std::move(output)));
     }
 
 
@@ -454,19 +415,19 @@ namespace watson
     // Map class
     // ----------------------------------------------------------------
 
-    const Ngrdnt Map::k_not_found;
+    const Ngrdnt::Ptr Map::k_not_found = Ngrdnt::make();
 
     Map::Map(Map::Children&& c) :
             children_(std::move(c))
     {
     }
 
-    Map::Map(const Ngrdnt& raw) :
+    Map::Map(const Ngrdnt::Ptr& raw) :
             Map()
     {
-        const size_t header_size = ngrdnt_header_size(raw.type_marker());
-        const uint8_t* ptr = raw.data() + header_size;
-        const uint8_t* const end = raw.data() + raw.size();
+        const size_t header_size = ngrdnt_header_size(raw->type_marker());
+        const uint8_t* ptr = raw->data() + header_size;
+        const uint8_t* const end = raw->data() + raw->size();
         assert(end >= ptr);
 
         while (end > ptr)
@@ -480,11 +441,11 @@ namespace watson
                     Ngrdnt::temp(ptr)));
 
             // Advance the ptr.
-            ptr += Ngrdnt::temp(ptr).size();
+            ptr += Ngrdnt::temp(ptr)->size();
         }
     }
 
-    const Ngrdnt& Map::operator[](uint32_t key) const
+    const Ngrdnt::Ptr& Map::operator[](uint32_t key) const
     {
         auto iter = children().find(key);
         if (iter == children().end())
@@ -526,14 +487,14 @@ namespace watson
     {
     }
 
-    Bytes::Bytes(const Ngrdnt& raw) :
-            size_(raw.size() - ngrdnt_header_size(raw.type_marker()) - sizeof(uint32_t)),
+    Bytes::Bytes(const Ngrdnt::Ptr& raw) :
+            size_(raw->size() - ngrdnt_header_size(raw->type_marker()) - sizeof(uint32_t)),
             ptr_(new uint8_t[size_ + sizeof(uint32_t)]),
             marshal_hint_(reinterpret_cast<uint32_t*>(ptr_.get())),
             data_(ptr_.get() + sizeof(uint32_t))
     {
-        const size_t header_size = ngrdnt_header_size(raw.type_marker());
-        const uint8_t* ptr = raw.data() + header_size;
+        const size_t header_size = ngrdnt_header_size(raw->type_marker());
+        const uint8_t* ptr = raw->data() + header_size;
 
         memcpy(ptr_.get(), ptr, size_ + sizeof(uint32_t));
     }
@@ -556,12 +517,13 @@ namespace watson
     // Native to WatSON methods.
     // ----------------------------------------------------------------
 
-    Ngrdnt new_ngrdnt(const Container& val)
+    Ngrdnt::Ptr new_ngrdnt(const Container& val)
     {
+        // Calculate the necessary size first.
         uint64_t sz = 0;
         for (auto ing : val.children())
         {
-            sz += ing.size();
+            sz += ing->size();
         }
 
         uint8_t* current;
@@ -572,20 +534,20 @@ namespace watson
         {
             assert(end > current);
 
-            memcpy(current, ing.data(), ing.size());
-            current += ing.size();
+            memcpy(current, ing->data(), ing->size());
+            current += ing->size();
         }
-        return Ngrdnt(std::move(ptr));
+        return Ngrdnt::adopt(std::move(ptr));
     }
 
-    Ngrdnt new_ngrdnt(const Library& val)
+    Ngrdnt::Ptr new_ngrdnt(const Library& val)
     {
-        std::vector<Ngrdnt> cache(val.size());
+        std::vector<Ngrdnt::Ptr> cache(val.size());
         uint64_t sz = 0;
         for (uint32_t h = 0; h < val.size(); ++h)
         {
             cache[h] = new_ngrdnt(val[h]);
-            sz += cache[h].size();
+            sz += cache[h]->size();
         }
 
         uint8_t* current;
@@ -596,64 +558,40 @@ namespace watson
         {
             assert(end > current);
 
-            memcpy(current, r.data(), r.size());
-            current += r.size();
+            memcpy(current, r->data(), r->size());
+            current += r->size();
         }
 
-        return Ngrdnt(std::move(ptr));
+        return Ngrdnt::adopt(std::move(ptr));
     }
 
-    Ngrdnt new_ngrdnt(const Header& val)
+    Ngrdnt::Ptr new_ngrdnt(const Compressed& val)
     {
-        uint64_t sz = 0;
-        for (auto h : val.children())
-        {
-            sz += h.second.size() + h.first.size() + 1;
-        }
-        
-        uint8_t* current;
-        std::unique_ptr<uint8_t[]> ptr(build_ngrdnt<Ngrdnt_type::k_header>(sz, &current));
-        const uint8_t* const end = current + sz;
-
-        for(auto h : val.children())
-        {
-            assert(end > current);
-
-            memcpy(current, h.first.c_str(), h.first.size() + 1);
-            current += h.first.size() + 1;
-
-            memcpy(current, h.second.data(), h.second.size());
-            current += h.second.size();
-        }
-        return Ngrdnt(std::move(ptr));
-    }
-
-    Ngrdnt new_ngrdnt(const Compressed& val)
-    {
-        uint64_t sz = snappy::MaxCompressedLength(val.child().size());
+        uint64_t sz = snappy::MaxCompressedLength(val->size());
 
         std::unique_ptr<char[]> buffer(new char[sz]);
 
-        snappy::RawCompress(reinterpret_cast<const char*>(val.child().data()),
-                val.child().size(),
+        snappy::RawCompress(reinterpret_cast<const char*>(val->data()),
+                val->size(),
                 reinterpret_cast<char*>(buffer.get()),
                 reinterpret_cast<size_t*>(&sz));
 
         // I was originally not copying this. But I was noticing that Max
-        // Compressed Length can be pretty big.
+        // Compressed Length can be pretty big. This doesn't use Ngrdnt::clone
+        // because the initial data isn't loaded into a Ngrdnt.
         uint8_t* current;
         std::unique_ptr<uint8_t[]> ptr(build_ngrdnt<Ngrdnt_type::k_zip>(sz, &current));
         memcpy(current, buffer.get(), sz);
 
-        return Ngrdnt(std::move(ptr));
+        return Ngrdnt::adopt(std::move(ptr));
     }
 
-    Ngrdnt new_ngrdnt(const Map& val)
+    Ngrdnt::Ptr new_ngrdnt(const Map& val)
     {
         uint64_t sz = 0;
         for (auto h : val.children())
         {
-            sz += h.second.size() + 4;
+            sz += h.second->size() + 4;
         }
         
         uint8_t* current;
@@ -667,13 +605,13 @@ namespace watson
             *reinterpret_cast<uint32_t*>(current) = h.first;
             current += sizeof(uint32_t);
 
-            memcpy(current, h.second.data(), h.second.size());
-            current += h.second.size();
+            memcpy(current, h.second->data(), h.second->size());
+            current += h.second->size();
         }
-        return Ngrdnt(std::move(ptr));
+        return Ngrdnt::adopt(std::move(ptr));
     }
 
-    Ngrdnt new_ngrdnt(const Bytes& val)
+    Ngrdnt::Ptr new_ngrdnt(const Bytes& val)
     {
         uint64_t sz = val.size() + sizeof(uint32_t);
 
@@ -685,7 +623,7 @@ namespace watson
 
         memcpy(current, val.data(), val.size());
 
-        return Ngrdnt(std::move(ptr));
+        return Ngrdnt::adopt(std::move(ptr));
     }
 
 }; // namespace watson
@@ -704,7 +642,7 @@ namespace
     }
 }; // namespace (anonymous)
 
-std::istream& operator>>(std::istream& is, watson::Ngrdnt& val)
+std::istream& operator>>(std::istream& is, watson::Ngrdnt::Ptr& val)
 {
     char buffer[9];
     memset(buffer, 0, 9);
@@ -734,13 +672,13 @@ std::istream& operator>>(std::istream& is, watson::Ngrdnt& val)
         throw std::ios_base::failure("Unable to read the WatSON Element data from the input stream.");
     }
     
-    val = watson::Ngrdnt(std::move(data));
+    val = watson::Ngrdnt::adopt(std::move(data));
 
     return is;
 }
 
-std::ostream& operator<<(std::ostream& os, const watson::Ngrdnt& val)
+std::ostream& operator<<(std::ostream& os, const watson::Ngrdnt::Ptr& val)
 {
-    os.write(reinterpret_cast<const char*>(val.data()), val.size());
+    os.write(reinterpret_cast<const char*>(val->data()), val->size());
     return os;
 }

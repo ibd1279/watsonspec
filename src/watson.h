@@ -74,7 +74,6 @@ namespace watson
         k_int64 = 0x2C, //!< Signed 64bit integer type.
         k_uint64 = 0x35, //!< Unsigned 64bit integer type.
         k_string = 0x33, //!< String type
-        k_header = 0x08, //!< Header type.
         k_library = 0x0C, //!< Library type.
         k_container = 0x03, //!< Container (array) type.
         k_zip = 0x1A, //!< Compression type.
@@ -199,6 +198,8 @@ namespace watson
     {
     public:
 
+        using Ptr = std::shared_ptr<Ngrdnt>;
+
         /*!
          \brief Create a view of a memory region containing WatSON Ngrdnt
          data.
@@ -210,9 +211,9 @@ namespace watson
          \param bytes The bytes to observe.
          \return A new Ngrdnt object.
          */
-        static inline const Ngrdnt temp(const uint8_t* bytes)
+        static inline const Ngrdnt::Ptr temp(const uint8_t* bytes)
         {
-            return Ngrdnt(bytes);
+            return Ngrdnt::Ptr(new Ngrdnt(bytes));
         }
 
         /*!
@@ -225,37 +226,44 @@ namespace watson
          \param bytes The bytes to copy.
          \return A new Ngrdnt object.
          */
-        static inline Ngrdnt clone_from(const uint8_t* bytes)
+        static inline Ngrdnt::Ptr clone(const uint8_t* bytes)
         {
-            return Ngrdnt(temp(bytes));
+            return Ngrdnt::clone(temp(bytes));
+        }
+
+        /*!
+         \brief Create a copy of an Ngrdnt Object.
+
+         \param o The original Ngrdnt Object.
+         \return A new Ngrdnt object.
+        */
+        static inline Ngrdnt::Ptr clone(const Ngrdnt::Ptr& o)
+        {
+            return Ngrdnt::Ptr(new Ngrdnt(*o));
         }
 
         /*!
          \brief Crate a new null value Ngrdnt.
-         */
-        Ngrdnt();
 
-        /*!
-         \brief Copy constructor.
-         \param o The other Ngrdnt.
-         */
-        Ngrdnt(const Ngrdnt& o);
-
-        /*!
-         \brief Move constructor.
-         \param o The other Ngrdnt.
-         */
-        Ngrdnt(Ngrdnt&& o);
+         \return A new Ngrdnt object.
+        */
+        static inline Ngrdnt::Ptr make()
+        {
+            return Ngrdnt::Ptr(new Ngrdnt());
+        }
 
         /*!
          \brief Take ownership of memory containing WatSON Ngrdnt data.
 
-         The resulting object is responsible for freeing the
-         associated memory.
-
          \param bytes The bytes to adopt.
+         \param p The parent of this object.
+         \return A new Ngrdnt object.
          */
-        explicit Ngrdnt(std::unique_ptr<uint8_t[]>&& bytes);
+        static inline Ngrdnt::Ptr adopt(std::unique_ptr<uint8_t[]>&& bytes,
+                const Ngrdnt::Ptr& p = Ngrdnt::Ptr(nullptr))
+        {
+            return Ngrdnt::Ptr(new Ngrdnt(std::move(bytes), p));
+        }
 
         //! Destructor.
         ~Ngrdnt() = default;
@@ -282,36 +290,72 @@ namespace watson
 
         //! Raw data pointer.
         inline const uint8_t* data() const { return data_; }
+
+        //! Get the parent Ngrdnt.
+        inline const Ngrdnt::Ptr& parent() const { return parent_; }
+
+        //! Set the parent Ngrdnt.
+        inline void parent(const Ngrdnt::Ptr& p) { parent_ = p; }
+
     private:
-        //! Constructor for creating temp Ngrdnt objects.
+        /*!
+         \brief Constructor for creating blank Ngrdnt objects.
+         \sa Ngrdnt::make()
+         */
+        Ngrdnt();
+        
+        /*!
+         \brief Constructor for creating copies of Ngrdnt objects.
+         \sa Ngrdnt::clone(const Ngrdnt::Ptr&)
+         */
+        Ngrdnt(const Ngrdnt& o);
+
+        /*!
+         \brief Constructor for creating temp Ngrdnt objects.
+         \sa Ngrdnt::temp(const uint8_t*)
+         */
         explicit Ngrdnt(const uint8_t* d);
 
+        /*!
+         \brief Constructor for creating an Ngrdnt around bytes.
+         \sa Ngrdnt::adopt(std::unique_ptr<uint8_t[]>&&, const Ngrdnt::Ptr&, const Ngrdnt::Ptr&))
+         */
+        explicit Ngrdnt(std::unique_ptr<uint8_t[]>&& bytes,
+                const Ngrdnt::Ptr& p);
+
+        // Data for the object.
         std::unique_ptr<uint8_t[]> ptr_;
         const uint8_t* data_;
+
+        //! Context for where the Ngrdnt was in the recipe. 
+        Ngrdnt::Ptr parent_;
     }; // class watson::Ngrdnt
 
-    Ngrdnt new_ngrdnt();
-    Ngrdnt new_ngrdnt(const std::string& val);
-    inline Ngrdnt new_ngrdnt(const char* val) { return new_ngrdnt(std::string(val)); }
-    Ngrdnt new_ngrdnt(const bool val);
-    Ngrdnt new_ngrdnt(const double val);
-    Ngrdnt new_ngrdnt(const int32_t val);
-    Ngrdnt new_ngrdnt(const int64_t val);
-    Ngrdnt new_ngrdnt(const uint64_t val);
-    Ngrdnt new_ngrdnt(const std::vector<bool>& val);
 
-    bool is_null(const Ngrdnt& val);
-    bool to_bool(const Ngrdnt& val);
-    double to_double(const Ngrdnt& val);
-    int32_t to_int32(const Ngrdnt& val);
-    int64_t to_int64(const Ngrdnt& val);
-    uint64_t to_uint64(const Ngrdnt& val);
-    std::vector<bool> to_flags(const Ngrdnt& val);
-    std::string to_string(const Ngrdnt& val);
-    std::string to_dump(const Ngrdnt& val);
+    Ngrdnt::Ptr new_ngrdnt();
+    Ngrdnt::Ptr new_ngrdnt(const std::string& val);
+    inline Ngrdnt::Ptr new_ngrdnt(const char* val) { return new_ngrdnt(std::string(val)); }
+    Ngrdnt::Ptr new_ngrdnt(const bool val);
+    Ngrdnt::Ptr new_ngrdnt(const double val);
+    Ngrdnt::Ptr new_ngrdnt(const int32_t val);
+    Ngrdnt::Ptr new_ngrdnt(const int64_t val);
+    Ngrdnt::Ptr new_ngrdnt(const uint64_t val);
+    Ngrdnt::Ptr new_ngrdnt(const std::vector<bool>& val);
+
+    bool is_null(const Ngrdnt::Ptr& val);
+    bool to_bool(const Ngrdnt::Ptr& val);
+    double to_double(const Ngrdnt::Ptr& val);
+    int32_t to_int32(const Ngrdnt::Ptr& val);
+    int64_t to_int64(const Ngrdnt::Ptr& val);
+    uint64_t to_uint64(const Ngrdnt::Ptr& val);
+    std::vector<bool> to_flags(const Ngrdnt::Ptr& val);
+    std::string to_string(const Ngrdnt::Ptr& val);
+    std::string to_dump(const Ngrdnt::Ptr& val);
 
     /*!
      \brief WatSON Basic Container Ngrdnt
+
+     This is specialized into Container and Library types further below.
      \since 0.1
      \sa http://watsonspec.org/
      */
@@ -329,11 +373,11 @@ namespace watson
                 children_(std::move(c))
         {
         }
-        explicit Basic_container(const Ngrdnt& raw)
+        explicit Basic_container(const Ngrdnt::Ptr& raw)
         {
             ETL etl;
-            const uint8_t* ptr = raw.data() + size_size(size_type(raw.type_marker())) + 1;
-            const uint8_t* const end = raw.data() + raw.size();
+            const uint8_t* ptr = raw->data() + size_size(size_type(raw->type_marker())) + 1;
+            const uint8_t* const end = raw->data() + raw->size();
 
             while (end > ptr)
             {
@@ -341,7 +385,7 @@ namespace watson
                 children_.emplace_back(etl(Ngrdnt::temp(ptr)));
 
                 // Advance the ptr.
-                ptr += Ngrdnt::temp(ptr).size();
+                ptr += Ngrdnt::temp(ptr)->size();
             }
         }
         ~Basic_container() = default;
@@ -359,7 +403,7 @@ namespace watson
     //! Ngrdnt identity functor
     struct Ngrdnt_identity
     {
-        const Ngrdnt& operator()(const Ngrdnt& i)
+        const Ngrdnt::Ptr& operator()(const Ngrdnt::Ptr& i)
         {
             return i;
         }
@@ -368,64 +412,38 @@ namespace watson
     //! Ngrdnt to string functor.
     struct Ngrdnt_string
     {
-        const std::string operator()(const Ngrdnt& i)
+        const std::string operator()(const Ngrdnt::Ptr& i)
         {
             return to_string(i);
         }
     }; // struct watson::Ngrdnt_string
 
     //! WatSON Container type.
-    using Container = Basic_container<Ngrdnt, Ngrdnt_identity>;
+    using Container = Basic_container<Ngrdnt::Ptr, Ngrdnt_identity>;
 
     //! WatSON Library type.
     using Library = Basic_container<std::string, Ngrdnt_string>;
 
     /*!
-     \brief WatSON Header Ngrdnt
-     \since 0.1
-     \sa http://watsonspec.org/
-     */
-    class Header
-    {
-    public:
-        using Children = std::map<std::string, Ngrdnt>;
-
-        static const Ngrdnt k_not_found;
-
-        Header() = default;
-        Header(const Header& o) = default;
-        Header(Header&& o) = default;
-        Header(Children&& c);
-        explicit Header(const Ngrdnt& raw);
-        ~Header() = default;
-        Header& operator=(const Header& rhs) = default;
-        Header& operator=(Header&& rhs) = default;
-
-        inline Children& mutable_children() { return children_; }
-        inline const Children& children() const { return children_; }
-        inline const size_t size() const { return children().size(); }
-        const Ngrdnt& operator[](const std::string& key) const;
-    private:
-        Children children_;
-    }; // class watson::Header
-
-    /*!
      \brief WatSON Map Ngrdnt
+
+     A map is a key/value lookup. Keys are integers. If you need to pass
+     the key names, you must provide them as an array.
      \since 0.1
      \sa http://watsonspec.org/
      */
     class Map
     {
     public:
-        using Children = std::map<uint32_t, Ngrdnt>;
+        using Children = std::map<uint32_t, Ngrdnt::Ptr>;
 
-        static const Ngrdnt k_not_found;
+        static const Ngrdnt::Ptr k_not_found;
 
         Map() = default;
         Map(const Map& o) = default;
         Map(Map&& o) = default;
         explicit Map(Children&& c);
-        explicit Map(const Ngrdnt& raw);
+        explicit Map(const Ngrdnt::Ptr& raw);
         ~Map() = default;
         Map& operator=(const Map& rhs) = default;
         Map& operator=(Map&& rhs) = default;
@@ -433,29 +451,35 @@ namespace watson
         inline Children& mutable_children() { return children_; }
         inline const Children& children() const { return children_; }
         inline const size_t size() const { return children().size(); }
-        const Ngrdnt& operator[](uint32_t key) const;
+        const Ngrdnt::Ptr& operator[](uint32_t key) const;
     private:
         Children children_;
     }; // class watson::Map
 
+    /*!
+     \brief WatSON Compressed Ngrdnt
+
+     Represents a Snappy compressed Ngrdnt.
+     /since 0.1
+     \sa http://watsonspec.org
+     */
     class Compressed
     {
     public:
-        Compressed() = default;
+        Compressed();
         Compressed(const Compressed& o) = default;
         Compressed(Compressed&& o) = default;
-        explicit Compressed(Ngrdnt&& c);
-        explicit Compressed(const Ngrdnt& raw);
+        explicit Compressed(Ngrdnt::Ptr&& c);
+        explicit Compressed(const Ngrdnt::Ptr& raw);
         ~Compressed() = default;
         Compressed& operator=(const Compressed& rhs) = default;
         Compressed& operator=(Compressed&& rhs) = default;
 
-        inline Ngrdnt& mutable_child() { return child_; }
-        inline const Ngrdnt& child() const { return child_; }
-        inline const Ngrdnt& operator*() const { return child_; }
-        inline const Ngrdnt* operator->() const { return &child_; }
+        inline Ngrdnt::Ptr& mutable_child() { return child_; }
+        inline const Ngrdnt::Ptr& operator*() const { return child_; }
+        inline const Ngrdnt* operator->() const { return child_.get(); }
     private:
-        Ngrdnt child_;
+        Ngrdnt::Ptr child_;
     }; // class watson::Compressed
 
     /*!
@@ -488,7 +512,7 @@ namespace watson
         Bytes(const Bytes& o);
         Bytes(Bytes&& o) = default;
         Bytes(std::unique_ptr<uint8_t[]>&& v, uint64_t v_sz);
-        explicit Bytes(const Ngrdnt& raw);
+        explicit Bytes(const Ngrdnt::Ptr& raw);
         ~Bytes() = default;
         Bytes& operator=(const Bytes& rhs);
         Bytes& operator=(Bytes&& rhs) = default;
@@ -507,12 +531,11 @@ namespace watson
         const uint8_t* data_;
     }; // class watson::Container
 
-    Ngrdnt new_ngrdnt(const Container& val);
-    Ngrdnt new_ngrdnt(const Library& val);
-    Ngrdnt new_ngrdnt(const Header& val);
-    Ngrdnt new_ngrdnt(const Compressed& val);
-    Ngrdnt new_ngrdnt(const Map& val);
-    Ngrdnt new_ngrdnt(const Bytes& val);
+    Ngrdnt::Ptr new_ngrdnt(const Container& val);
+    Ngrdnt::Ptr new_ngrdnt(const Library& val);
+    Ngrdnt::Ptr new_ngrdnt(const Compressed& val);
+    Ngrdnt::Ptr new_ngrdnt(const Map& val);
+    Ngrdnt::Ptr new_ngrdnt(const Bytes& val);
 
 }; // namespace watson
 
@@ -524,7 +547,7 @@ namespace watson
  \param val The watson::Ngrdnt to store the data in.
  \return The input stream passed.
  */
-std::istream& operator>>(std::istream& is, watson::Ngrdnt& val);
+std::istream& operator>>(std::istream& is, watson::Ngrdnt::Ptr& val);
 
 /*!
  \brief Insert data with format.
@@ -534,4 +557,4 @@ std::istream& operator>>(std::istream& is, watson::Ngrdnt& val);
  \param val The watson::Ngrdnt to copy to binary.
  \return The output stream passed.
  */
-std::ostream& operator<<(std::ostream& os, const watson::Ngrdnt& val);
+std::ostream& operator<<(std::ostream& os, const watson::Ngrdnt::Ptr& val);

@@ -136,14 +136,14 @@ void test_Container_adoption_ctr()
     kids[6] = watson::new_ngrdnt(expected_int);
 
     watson::Container obj(std::move(kids));
-    watson::Ngrdnt i(watson::new_ngrdnt(obj));
+    watson::Ngrdnt::Ptr i(watson::new_ngrdnt(obj));
 
-    for (int h = 0; h < i.size(); ++h)
+    for (int h = 0; h < i->size(); ++h)
     {
         std::ostringstream oss;
-        oss << "h=" << h << " result=" << ((int)i.data()[h]);
+        oss << "h=" << h << " result=" << ((int)i->data()[h]);
         oss << " expected=" << ((int)test_container[h]);
-        TEST_ASSERT_MSG(oss.str(), i.data()[h] == test_container[h]);
+        TEST_ASSERT_MSG(oss.str(), i->data()[h] == test_container[h]);
     }
 }
 

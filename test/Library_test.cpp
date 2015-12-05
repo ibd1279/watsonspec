@@ -112,14 +112,14 @@ void test_Library_adoption_ctr()
     c[1] = second_string;
     c[2] = third_string;
     watson::Library l(std::move(c));
-    watson::Ngrdnt i(watson::new_ngrdnt(l));
+    watson::Ngrdnt::Ptr i(watson::new_ngrdnt(l));
 
-    for (int h = 0; h < i.size(); ++h)
+    for (int h = 0; h < i->size(); ++h)
     {
         std::ostringstream oss;
-        oss << "h=" << h << " result=" << ((int)i.data()[h]);
+        oss << "h=" << h << " result=" << ((int)i->data()[h]);
         oss << " expected=" << ((int)test_library[h]);
-        TEST_ASSERT_MSG(oss.str(), i.data()[h] == test_library[h]);
+        TEST_ASSERT_MSG(oss.str(), i->data()[h] == test_library[h]);
     }
 }
 
