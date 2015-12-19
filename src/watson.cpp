@@ -117,6 +117,12 @@ namespace watson
     }
 
     // ----------------------------------------------------------------
+    // A null ingredient, but the pointer is special. 
+    // ----------------------------------------------------------------
+
+    const Ngrdnt::Ptr k_not_found = Ngrdnt::make();
+
+    // ----------------------------------------------------------------
     // Simple Ngrdnt
     // ----------------------------------------------------------------
 
@@ -415,8 +421,6 @@ namespace watson
     // Map class
     // ----------------------------------------------------------------
 
-    const Ngrdnt::Ptr Map::k_not_found = Ngrdnt::make();
-
     Map::Map(Map::Children&& c) :
             children_(std::move(c))
     {
@@ -598,7 +602,7 @@ namespace watson
         std::unique_ptr<uint8_t[]> ptr(build_ngrdnt<Ngrdnt_type::k_map>(sz, &current));
         const uint8_t* const end = current + sz;
 
-        for(auto h : val.children())
+        for (auto h : val.children())
         {
             assert(end > current);
 
@@ -627,6 +631,11 @@ namespace watson
     }
 
 }; // namespace watson
+
+
+// ----------------------------------------------------------------
+// WatSON stream methods.
+// ----------------------------------------------------------------
 
 namespace
 {
@@ -682,3 +691,126 @@ std::ostream& operator<<(std::ostream& os, const watson::Ngrdnt::Ptr& val)
     os.write(reinterpret_cast<const char*>(val->data()), val->size());
     return os;
 }
+
+namespace watson
+{
+
+
+    // ----------------------------------------------------------------
+    // WatSON Glossary methods.
+    // ----------------------------------------------------------------
+
+    Glossary::Glossary(const Library& l) :
+        names(l.size())
+    {
+        for (int h = 0; h < l.size(); ++h)
+        {
+            names[h] = l[h];
+            index[l[h]] = h;
+        }
+    }
+
+    std::list<uint32_t> xlate(const Glossary& g, const std::list<std::string>& names)
+    {
+        std::list<uint32_t> retval;
+
+        for (auto name : names) {
+            auto iter = g.index.find(name);
+            retval.push_back(iter != g.index.end() ? iter->second : 0);
+        }
+        return retval;
+    }
+
+    std::list<std::string> xlate(const Glossary& g, const std::list<uint32_t>& keys)
+    {
+        std::list<std::string> retval;
+
+        for (auto key : keys) {
+            retval.push_back(key < g.names.size() ? g.names[key] : "");
+        }
+        return retval;
+    }
+
+
+    // ----------------------------------------------------------------
+    // WatSON Recipe methods.
+    // ----------------------------------------------------------------
+
+    Recipe::Recipe(Ngrdnt::Ptr&& c)
+    {
+        if (Ngrdnt_type::k_container == ngrdnt_type(c->type_marker()))
+        {
+            container_ = Container(std::move(c));
+        }
+        else
+        {
+            container_.mutable_children().push_back(std::move(c));
+        }
+
+        for (const auto child : container_.children())
+        {
+            if (Ngrdnt_type::k_library == ngrdnt_type(child->type_marker()))
+            {
+                glossary_ = Glossary(Library(child));
+                break;
+            }
+        }
+    }
+
+    Recipe::Recipe(const Ngrdnt::Ptr& raw) :
+        Recipe(std::move(Ngrdnt::clone(raw)))
+    {
+    }
+
+    const Ngrdnt::Ptr Recipe::ngrdnt(const std::list<uint32_t>& steps) const
+    {
+        if (steps.empty()) {
+            return k_not_found;
+        }
+
+        auto iter = steps.begin();
+        Ngrdnt::Ptr retval = container_[*iter];
+
+        for (++iter; iter != steps.end();)
+        {
+            switch (ngrdnt_type(retval->type_marker()))
+            {
+                case Ngrdnt_type::k_container:
+                    {
+                        Container tmp(retval);
+                        if (*iter >= tmp.size())
+                        {
+                            return k_not_found;
+                        }
+                        retval = tmp[*iter];
+                        ++iter;
+                    }
+                    break;
+                case Ngrdnt_type::k_map:
+                    retval = Map(retval)[*iter];
+                    ++iter;
+                    break;
+                case Ngrdnt_type::k_zip:
+                    retval = *Compressed(retval);
+                    break;
+                default:
+                    return k_not_found;
+                    break;
+            }
+        }
+        return retval;
+    }
+
+    Recipe Recipe::recipe(const std::list<uint32_t>& steps) const
+    {
+        Recipe retval(ngrdnt(steps));
+
+        if (retval.glossary().empty() && !glossary().empty())
+        {
+            retval.glossary_ = glossary_;
+        }
+
+        return retval;
+    }
+
+}; // namespace watson

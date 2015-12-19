@@ -36,6 +36,7 @@
 #include <cassert>
 #include <cstdint>
 #include <istream>
+#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -332,6 +333,8 @@ namespace watson
     }; // class watson::Ngrdnt
 
 
+    extern const Ngrdnt::Ptr k_not_found;
+
     Ngrdnt::Ptr new_ngrdnt();
     Ngrdnt::Ptr new_ngrdnt(const std::string& val);
     inline Ngrdnt::Ptr new_ngrdnt(const char* val) { return new_ngrdnt(std::string(val)); }
@@ -436,8 +439,6 @@ namespace watson
     {
     public:
         using Children = std::map<uint32_t, Ngrdnt::Ptr>;
-
-        static const Ngrdnt::Ptr k_not_found;
 
         Map() = default;
         Map(const Map& o) = default;
@@ -558,3 +559,89 @@ std::istream& operator>>(std::istream& is, watson::Ngrdnt::Ptr& val);
  \return The output stream passed.
  */
 std::ostream& operator<<(std::ostream& os, const watson::Ngrdnt::Ptr& val);
+
+namespace watson
+{
+    /*!
+     \brief WatSON Glossary
+
+     A glossary is a key/value lookup for map keys. Map keys are
+     transmitted as integers. A library object is used to
+     communicate the string version of the keys. The glossary object
+     provides mechanisms for looking up names from map keys or map keys
+     from names.
+     \since 0.1
+     \sa http://watsonspec.org/
+     */
+    struct Glossary
+    {
+        Glossary() = default;
+        Glossary(Glossary&& o) = default;
+        Glossary(const Glossary& o) = default;
+        explicit Glossary(const Library& l);
+        Glossary& operator=(const Glossary& rhs) = default;
+        Glossary& operator=(Glossary&& rhs) = default;
+
+        bool empty() const { return names.empty(); }
+
+        std::vector<std::string> names;
+        std::map<std::string, uint32_t> index;
+    }; // class watson::Glossary
+
+    /*!
+     \brief Translate a list of strings into a list of map keys.
+
+     Unknown names are translated to map key 0
+     \param g The glossary to use.
+     \param names The names to translate.
+     \param List of keys, in the same order as provided.
+     \since 0.1
+     */
+    std::list<uint32_t> xlate(const Glossary& g, const std::list<std::string>& names);
+
+    /*!
+     \brief Translate a list of strings into a list of map keys.
+
+     Unknown map keys are translated to an empty string.
+     \param g The glossary to use.
+     \param keys The names to translate.
+     \param List of keys, in the same order as provided.
+     \since 0.1
+     */
+    std::list<std::string> xlate(const Glossary& g, const std::list<uint32_t>& keys);
+
+    /*!
+     \brief WatSON Recipe.
+
+     A WatSON Recipe is a structured collection of ingredients. In
+     this particular implementation, it consists of a top level
+     container, with a single "Library" object as the first item,
+     and any number of following items. 
+
+     \since 0.1
+     \sa http://watsonspec.org/
+     */
+    class Recipe
+    {
+    public:
+        Recipe() = default;
+        Recipe(Recipe&& o) = default;
+        Recipe(const Recipe& o) = default;
+        explicit Recipe(Ngrdnt::Ptr&& c);
+        explicit Recipe(const Ngrdnt::Ptr& raw);
+        Recipe& operator=(Recipe&& rhs) = default;
+        Recipe& operator=(const Recipe& rhs) = default;
+
+        inline const Container& container() const { return container_; }
+        inline const Glossary& glossary() const { return glossary_; }
+
+        const Ngrdnt::Ptr ngrdnt(const std::list<uint32_t>& steps) const;
+        Recipe recipe(const std::list<uint32_t>& steps) const;
+    private:
+        Container container_;
+        Glossary glossary_;
+    };
+
+    inline std::list<uint32_t> xlate(const Recipe& r, const std::list<std::string>& steps) { return xlate(r.glossary(), steps); }
+    inline std::list<std::string> xlate(const Recipe& r, const std::list<uint32_t>& steps) { return xlate(r.glossary(), steps); }
+}; // namespace watson
