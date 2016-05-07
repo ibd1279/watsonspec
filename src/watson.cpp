@@ -82,8 +82,8 @@ namespace watson
 
     Ngrdnt& Ngrdnt::operator=(const Ngrdnt& rhs)
     {
-        // Implemented via copy constructor and move assignment.
-        (*this) = std::move(Ngrdnt(rhs));
+        // Implemented via copy constructor
+        (*this) = Ngrdnt(rhs);
         return *this;
     }
 
@@ -386,7 +386,7 @@ namespace watson
     // ----------------------------------------------------------------
 
     Compressed::Compressed() :
-            child_(std::move(Ngrdnt::make()))
+            child_(Ngrdnt::make())
     {
     }
 
@@ -413,7 +413,7 @@ namespace watson
                 reinterpret_cast<char*>(output.get()));
         assert(result);
 
-        child_ = std::move(Ngrdnt::adopt(std::move(output)));
+        child_ = Ngrdnt::adopt(std::move(output));
     }
 
 
@@ -442,7 +442,7 @@ namespace watson
 
             // Store the value.
             children_.insert(Children::value_type(key,
-                    Ngrdnt::temp(ptr)));
+                    Ngrdnt::clone(ptr)));
 
             // Advance the ptr.
             ptr += Ngrdnt::temp(ptr)->size();
@@ -505,7 +505,7 @@ namespace watson
 
     Bytes& Bytes::operator=(const Bytes& rhs)
     {
-        (*this) = std::move(Bytes(rhs));
+        (*this) = Bytes(rhs);
         return (*this);
     }
 
@@ -740,7 +740,7 @@ namespace watson
     {
         if (Ngrdnt_type::k_container == ngrdnt_type(c->type_marker()))
         {
-            container_ = Container(std::move(c));
+            container_ = Container(Ngrdnt::clone(c));
         }
         else
         {
@@ -758,7 +758,7 @@ namespace watson
     }
 
     Recipe::Recipe(const Ngrdnt::Ptr& raw) :
-        Recipe(std::move(Ngrdnt::clone(raw)))
+        Recipe(Ngrdnt::clone(raw))
     {
     }
 

@@ -97,6 +97,13 @@ void test_Container_copy_ctr()
 
     watson::Container c = b;
     verify_object(c);
+
+    // verify that the Ngrdnt objects inside the collection don't point
+    // to the original test_container. This is to ensure the copy constructor
+    // doesn't shallow copy temp Ngrdnts.
+    const uint8_t* begin = test_container;
+    const uint8_t* end = test_container + sizeof(test_container);
+    TEST_ASSERT_MSG("Copy constructor resulted in a shallow copy.", !(obj[0]->data() > begin && obj[0]->data() < end));
 }
 
 void test_Container_ingredient_ctr()

@@ -132,6 +132,7 @@ struct Test_util
         std::cout << "%SUITE_FINISHED% time=";
         std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(4);
         std::cout << (elapsed(start) / 1000000.0f);
+        std::cout << " failures=" << failures;
         std::cout << std::endl;
 
         return (failures);

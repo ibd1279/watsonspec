@@ -141,7 +141,7 @@ void test_Compressed_move_semantics()
 
 void test_Compressed_adoption_ctr()
 {
-    watson::Compressed obj(std::move(watson::Ngrdnt::clone(test_container)));
+    watson::Compressed obj(watson::Ngrdnt::clone(test_container));
     watson::Ngrdnt::Ptr i(watson::new_ngrdnt(obj));
 
     for (int h = 0; h < i->size(); ++h)
@@ -155,7 +155,7 @@ void test_Compressed_adoption_ctr()
 
 void test_Compressed_read_write()
 {
-    watson::Compressed obj(std::move(watson::Ngrdnt::clone(test_container)));
+    watson::Compressed obj(watson::Ngrdnt::clone(test_container));
     const watson::Ngrdnt::Ptr i(watson::new_ngrdnt(obj));
     watson::Compressed b(i);
 

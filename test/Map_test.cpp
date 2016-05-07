@@ -60,25 +60,30 @@ void test_Map_default_ctr()
 
 void test_Map_copy_ctr()
 {
-    watson::Map m(watson::Ngrdnt::temp(test_map));
+    watson::Map obj(watson::Ngrdnt::temp(test_map));
 
-    watson::Map m_copy(m);
-    TEST_ASSERT_MSG(std::to_string(m_copy.size()), m_copy.size() == 4);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[0]->type_marker()) == watson::Ngrdnt_type::k_null);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[1]->type_marker()) == watson::Ngrdnt_type::k_true);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[2]->type_marker()) == watson::Ngrdnt_type::k_false);
-    TEST_ASSERT(watson::ngrdnt_type(m_copy[3]->type_marker()) == watson::Ngrdnt_type::k_string);
-    watson::Ngrdnt::Ptr s1(watson::Ngrdnt::clone(m_copy[3]));
-    TEST_ASSERT(watson::to_string(s1).compare(expected_string) == 0);
+    watson::Map b(obj);
+    TEST_ASSERT_MSG(std::to_string(b.size()), b.size() == 4);
+    TEST_ASSERT(watson::ngrdnt_type(b[0]->type_marker()) == watson::Ngrdnt_type::k_null);
+    TEST_ASSERT(watson::ngrdnt_type(b[1]->type_marker()) == watson::Ngrdnt_type::k_true);
+    TEST_ASSERT(watson::ngrdnt_type(b[2]->type_marker()) == watson::Ngrdnt_type::k_false);
+    TEST_ASSERT(watson::ngrdnt_type(b[3]->type_marker()) == watson::Ngrdnt_type::k_string);
+    TEST_ASSERT(watson::to_string(b[3]).compare(expected_string) == 0);
 
-    watson::Map c = m_copy;
-    TEST_ASSERT(m_copy.size() == 4);
+    watson::Map c = b;
+    TEST_ASSERT(c.size() == 4);
     TEST_ASSERT(watson::ngrdnt_type(c[0]->type_marker()) == watson::Ngrdnt_type::k_null);
     TEST_ASSERT(watson::ngrdnt_type(c[1]->type_marker()) == watson::Ngrdnt_type::k_true);
     TEST_ASSERT(watson::ngrdnt_type(c[2]->type_marker()) == watson::Ngrdnt_type::k_false);
     TEST_ASSERT(watson::ngrdnt_type(c[3]->type_marker()) == watson::Ngrdnt_type::k_string);
-    watson::Ngrdnt::Ptr s2(watson::Ngrdnt::clone(c[3]));
-    TEST_ASSERT(watson::to_string(s1).compare(expected_string) == 0);
+    TEST_ASSERT(watson::to_string(c[3]).compare(expected_string) == 0);
+
+    // verify that the Ngrdnt objects inside the map don't point
+    // to the original test_map. This is to ensure the copy constructor
+    // doesn't shallow copy temp Ngrdnts.
+    const uint8_t* begin = test_map;
+    const uint8_t* end = test_map + sizeof(test_map);
+    TEST_ASSERT_MSG("Copy constructor resulted in a shallow copy.", !(obj[0]->data() > begin && obj[0]->data() < end));
 }
 
 void test_Map_ingredient_ctr()

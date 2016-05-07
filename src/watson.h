@@ -385,12 +385,13 @@ namespace watson
             while (end > ptr)
             {
                 // Store the value.
-                children_.emplace_back(etl(Ngrdnt::temp(ptr)));
+                children_.emplace_back(etl(Ngrdnt::clone(ptr)));
 
                 // Advance the ptr.
                 ptr += Ngrdnt::temp(ptr)->size();
             }
         }
+        // TODO need a cheap way to make temp collections.
         ~Basic_container() = default;
         Basic_container& operator=(const Basic_container& rhs) = default;
         Basic_container& operator=(Basic_container&& rhs) = default;
@@ -445,6 +446,7 @@ namespace watson
         Map(Map&& o) = default;
         explicit Map(Children&& c);
         explicit Map(const Ngrdnt::Ptr& raw);
+        // TODO Need a cheap way to do temp maps.
         ~Map() = default;
         Map& operator=(const Map& rhs) = default;
         Map& operator=(Map&& rhs) = default;

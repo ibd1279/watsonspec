@@ -34,6 +34,7 @@
 
 #include "testhelper.h"
 #include "watson.h"
+#include <iomanip>
 
 namespace
 {
@@ -57,18 +58,42 @@ namespace
         c.mutable_children().push_back(watson::new_ngrdnt(l));
         c.mutable_children().push_back(watson::new_ngrdnt(m));
 
-        return new_ngrdnt(c);
+        TEST_ASSERT(watson::ngrdnt_type(c[0]->type_marker()) == watson::Ngrdnt_type::k_library);
+
+        return watson::new_ngrdnt(c);
     }
 
-    bool verify(const watson::Recipe& a)
+    void verify(const watson::Recipe& r)
     {
-        return true;
+        const watson::Container& c = r.container();
+
+        TEST_ASSERT(watson::ngrdnt_type(c[0]->type_marker()) == watson::Ngrdnt_type::k_library);
+
+        watson::Library l(c[0]);
+
+        TEST_ASSERT(l.size() == 4);
+        TEST_ASSERT(l[0].compare("first") == 0);
+        TEST_ASSERT(l[1].compare("second") == 0);
+        TEST_ASSERT(l[2].compare("third") == 0);
+        TEST_ASSERT(l[3].compare("third-first") == 0);
+
+        TEST_ASSERT(watson::ngrdnt_type(c[1]->type_marker()) == watson::Ngrdnt_type::k_map);
+        watson::Map m(c[1]);
+        TEST_ASSERT(m.size() == 3);
+        TEST_ASSERT(watson::to_string(m[0]).compare("First Element") == 0);
+        TEST_ASSERT(watson::to_string(m[1]).compare("Second Element") == 0);
+
+        TEST_ASSERT(watson::ngrdnt_type(m[2]->type_marker()) == watson::Ngrdnt_type::k_map);
+        //std::cout << watson::to_dump(m.mutable_children()[2]) << std::endl;
+        watson::Map cm(m[2]);
+        TEST_ASSERT(cm.size() == 1);
+        TEST_ASSERT(watson::to_string(cm[3]).compare("First Child of the Third Element") == 0);
     }
 };
 
 void test_xlate_string_to_int()
 {
-    watson::Recipe r(std::move(produce()));
+    watson::Recipe r(produce());
 
     // Test the first element.
     auto keys = watson::xlate(r.glossary(), std::list<std::string>{"first"});
@@ -95,7 +120,7 @@ void test_xlate_string_to_int()
 
 void test_xlate_int_to_string()
 {
-    watson::Recipe r(std::move(produce()));
+    watson::Recipe r(produce());
 
     auto keys = watson::xlate(r.glossary(), std::list<uint32_t>{0});
     TEST_ASSERT(keys.size() == 1);
@@ -126,12 +151,21 @@ void test_Recipe_default_ctr()
 
 void test_Recipe_copy_ctr()
 {
+    // Move a Ngrdnt into the Recipe.
+    watson::Recipe r(produce());
+
+    verify(r);
+
+    watson::Recipe r2(r);
+    
+    verify(r2);
 }
 
 const Test_entry tests[] = {
     PREPARE_TEST(test_xlate_string_to_int),
     PREPARE_TEST(test_xlate_int_to_string),
     PREPARE_TEST(test_Recipe_default_ctr),
+    PREPARE_TEST(test_Recipe_copy_ctr),
     {0, ""}
 };
 
